@@ -3,6 +3,7 @@ import { CreditCard, Building2, Bell, ShieldCheck } from "lucide-react";
 import { requireSessionContext } from "@/lib/auth";
 import { isManager } from "@/lib/roles";
 import { PageHeader } from "@/components/shared/page-header";
+import { EditProfileDialog } from "@/components/settings/profile-form";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -38,11 +39,16 @@ export default async function SettingsPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ShieldCheck className="h-4 w-4" /> Your profile
-            </CardTitle>
-            <CardDescription>How you appear in this workspace.</CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
+            <div className="space-y-1.5">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ShieldCheck className="h-4 w-4" /> Your profile
+              </CardTitle>
+              <CardDescription>
+                How you appear in this workspace.
+              </CardDescription>
+            </div>
+            <EditProfileDialog profile={profile} />
           </CardHeader>
           <CardContent className="divide-y">
             <Row
@@ -51,6 +57,7 @@ export default async function SettingsPage() {
             />
             <Row label="Email" value={profile.email} />
             <Row label="Role" value={USER_ROLE_LABELS[profile.role]} />
+            <Row label="Phone" value={profile.phone ?? "—"} />
             <Row label="Unit" value={profile.unit_number ?? "—"} />
           </CardContent>
         </Card>
