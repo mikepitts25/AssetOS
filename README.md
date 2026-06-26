@@ -84,6 +84,54 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 ---
 
+## Connect to Supabase (quickstart for this project)
+
+This is the fastest path to a running app against the existing hosted Supabase
+project. **Run these steps somewhere that can reach Supabase** — your local
+machine works; a sandboxed cloud session may be blocked by network policy (see
+note at the bottom).
+
+### 1. Create `.env.local`
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://cjgnmrjrrbfeqjbpvddz.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_d3P7N0sbDUllNaW4xOhBOg_bq_Di2TH
+SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+- The `NEXT_PUBLIC_*` values are public by design (the `sb_publishable_…` key is
+  the modern replacement for the anon key and works with our client).
+- `SUPABASE_SERVICE_ROLE_KEY`: paste the project's **secret** key (`sb_secret_…`
+  from **Project Settings → API**). Optional for the demo — only the new-signup
+  onboarding flow needs it; the seeded demo logins work without it.
+
+### 2. Apply the schema + demo data (one paste)
+
+Open the **Supabase dashboard → SQL Editor**, paste the entire contents of
+[`supabase/setup.sql`](supabase/setup.sql), and click **Run**. That single file
+bundles the three migrations (in order) plus the demo seed. Your browser talks
+to Supabase directly, so no special network access is required.
+
+### 3. Run the app
+
+```bash
+npm install
+npm run dev          # http://localhost:3000
+```
+
+Log in as `mike@assetos.demo` / `Password123!` (see the full demo table below).
+
+> **Cloud-session note:** if you're running Claude Code in a sandboxed cloud
+> environment, outbound access to `*.supabase.co` may be denied by the org
+> network policy (you'll see `403` on CONNECT through the egress proxy). In that
+> case, apply `setup.sql` from your browser and run the app locally, **or** start
+> a cloud session whose network policy allows `supabase.co`. A cloud session
+> cannot access a local path like `/Users/<you>/...` — the only bridge to your
+> machine is GitHub.
+
+---
+
 ## Supabase setup
 
 ### Option A — Local Supabase (recommended for the demo)
