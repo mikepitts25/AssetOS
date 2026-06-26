@@ -118,10 +118,17 @@ new-signup onboarding needs it). DB tables: note the guest-pass table is
 ### Known gaps (what's left for a fully working MVP)
 
 1. ~~**Apply the schema to a Supabase project + verify.**~~ ✅ Done (see above).
-2. **Invite/claim flow.** A manager-added (`invited`) resident who signs up with
-   that email currently gets a brand-new empty org via onboarding instead of being
-   linked to their existing profile. Fix: on signup, match an existing invited
-   profile by email and attach `auth_user_id`. Seeded demo users are unaffected.
+2. ~~**Invite/claim flow.**~~ ✅ Done (2026-06-26). On reaching `/onboarding`, a
+   signed-up user whose email matches an unclaimed (`auth_user_id is null`)
+   `invited` profile now sees a **"You've been invited — Join {org}"** card; the
+   `claimInvite` action attaches `auth_user_id` + sets `status = active`, so they
+   land in the manager's org with their assigned role instead of a fresh empty
+   workspace. `createWorkspace` also short-circuits to the same claim defensively.
+   Both paths use the **admin client** (RLS hides the cross-org invite from a user
+   with no org yet), so this requires `SUPABASE_SERVICE_ROLE_KEY` — the onboarding
+   page degrades to the create-workspace form when the key is absent. Verified
+   end-to-end against the live DB. Hardening left for later: matches on email
+   alone (no invite token), so possession of the address = claim.
 3. **Stale statuses.** No scheduled job flips `available → expired` or guest passes
    `active → expired` after their end time. Time-window queries handle "available
    now," but stored status fields go stale without a cron.

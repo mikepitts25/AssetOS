@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
-import { Building2 } from "lucide-react";
+import { Building2, UserCheck } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { USER_ROLE_LABELS, type UserRole } from "@/types/domain";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createWorkspace } from "./actions";
+import { claimInvite, createWorkspace } from "./actions";
 
 export const metadata = { title: "Set up your workspace · AssetOS" };
 
@@ -32,6 +34,65 @@ export default async function OnboardingPage() {
     .eq("auth_user_id", user.id)
     .maybeSingle();
   if (profile) redirect("/app/dashboard");
+
+  // Was this email invited by a manager? Offer to join their workspace instead
+  // of creating a new one. Admin client because the user has no org yet, so RLS
+  // would hide a profile living in the manager's organization. The service-role
+  // key is optional for the demo, so degrade to the create-workspace form when
+  // it isn't configured (invite detection simply can't run without it).
+  const invite = process.env.SUPABASE_SERVICE_ROLE_KEY
+    ? (
+        await createAdminClient()
+          .from("profiles")
+          .select("id, role, organization_id")
+          .is("auth_user_id", null)
+          .eq("email", (user.email ?? "").trim().toLowerCase())
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle()
+      ).data
+    : null;
+
+  if (invite) {
+    const admin = createAdminClient();
+    const { data: org } = await admin
+      .from("organizations")
+      .select("name")
+      .eq("id", invite.organization_id)
+      .maybeSingle();
+    const orgName = org?.name ?? "your organization";
+    const roleLabel = USER_ROLE_LABELS[invite.role as UserRole] ?? "member";
+
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-secondary/40 px-4 py-12">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <UserCheck className="h-5 w-5" />
+            </div>
+            <CardTitle className="text-xl">You&apos;ve been invited</CardTitle>
+            <CardDescription>
+              A manager added <span className="font-medium">{user.email}</span>{" "}
+              to <span className="font-medium">{orgName}</span> as{" "}
+              <span className="font-medium">{roleLabel}</span>. Join to start
+              using your workspace.
+            </CardDescription>
+          </CardHeader>
+          <form action={claimInvite}>
+            <CardFooter className="flex-col gap-3">
+              <Button type="submit" className="w-full">
+                Join {orgName}
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                Not you? Contact your property manager to update the invite
+                email.
+              </p>
+            </CardFooter>
+          </form>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-secondary/40 px-4 py-12">

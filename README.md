@@ -102,9 +102,11 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 - The `NEXT_PUBLIC_*` values are public by design (the `sb_publishable_…` key is
   the modern replacement for the anon key and works with our client).
-- `SUPABASE_SERVICE_ROLE_KEY`: paste the project's **secret** key (`sb_secret_…`
-  from **Project Settings → API**). Optional for the demo — only the new-signup
-  onboarding flow needs it; the seeded demo logins work without it.
+- `SUPABASE_SERVICE_ROLE_KEY`: paste the project's **secret** key (`sb_secret_…`,
+  or the legacy `service_role` JWT, from **Project Settings → API**). Optional for
+  the demo — only the **onboarding** flow needs it (creating a new workspace, and
+  detecting/claiming a manager's invite); the seeded demo logins work without it.
+  When it's absent, onboarding falls back to the create-workspace form.
 
 ### 2. Apply the schema + demo data (one paste)
 
