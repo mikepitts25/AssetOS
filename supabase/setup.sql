@@ -763,6 +763,84 @@ begin
 end;
 $$;
 
+-- >>>>>>>>>>>>>>>>>>>>  20260101000003_expiry.sql  <<<<<<<<<<<<<<<<<<<<
+-- ============================================================
+-- Stale status expiry
+-- ============================================================
+-- Flips time-expired records to their terminal status. Time-window queries
+-- already answer "active right now?", but stored `status` columns go stale.
+--   space_availabilities  available -> expired
+--   visitor_passes        active    -> expired
+--   reservations          confirmed -> completed
+
+create or replace function expire_stale_records()
+returns table (
+  expired_availabilities integer,
+  expired_visitor_passes integer,
+  completed_reservations integer
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_avail  integer;
+  v_passes integer;
+  v_resv   integer;
+begin
+  with updated as (
+    update space_availabilities
+       set status = 'expired', updated_at = now()
+     where status = 'available' and ends_at < now()
+    returning 1
+  )
+  select count(*) into v_avail from updated;
+
+  with updated as (
+    update visitor_passes
+       set status = 'expired', updated_at = now()
+     where status = 'active' and ends_at < now()
+    returning 1
+  )
+  select count(*) into v_passes from updated;
+
+  with updated as (
+    update reservations
+       set status = 'completed', updated_at = now()
+     where status = 'confirmed' and ends_at < now()
+    returning 1
+  )
+  select count(*) into v_resv from updated;
+
+  return query select v_avail, v_passes, v_resv;
+end;
+$$;
+
+comment on function expire_stale_records() is
+  'Flips time-expired availabilities/visitor passes/reservations to their terminal status. Idempotent; safe to run on any schedule.';
+
+grant execute on function expire_stale_records() to service_role;
+
+-- Best-effort in-database schedule (every 15 min). Wrapped so this bundle still
+-- succeeds where pg_cron isn't available; in that case rely on the API route.
+do $$
+begin
+  create extension if not exists pg_cron;
+  if exists (select 1 from cron.job where jobname = 'expire-stale-records') then
+    perform cron.unschedule('expire-stale-records');
+  end if;
+  perform cron.schedule(
+    'expire-stale-records',
+    '*/15 * * * *',
+    'select expire_stale_records();'
+  );
+  raise notice 'pg_cron job "expire-stale-records" scheduled (every 15 minutes).';
+exception
+  when others then
+    raise notice 'pg_cron scheduling skipped (%); use /api/cron/expire-stale instead.', sqlerrm;
+end;
+$$;
+
 -- >>>>>>>>>>>>>>>>>>>>  supabase/seed.sql  <<<<<<<<<<<<<<<<<<<<
 -- ============================================================
 -- AssetOS / ParkingOS — Demo seed data

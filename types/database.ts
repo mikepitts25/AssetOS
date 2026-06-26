@@ -203,6 +203,14 @@ export type Database = {
         };
         Returns: Reservation;
       };
+      expire_stale_records: {
+        Args: Record<string, never>;
+        Returns: {
+          expired_availabilities: number;
+          expired_visitor_passes: number;
+          completed_reservations: number;
+        }[];
+      };
     };
     Enums: { [_ in never]: never };
   };
