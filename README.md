@@ -199,7 +199,24 @@ npm run build      # production build
 npm run start      # run the production build
 npm run lint       # eslint
 npm run typecheck  # tsc --noEmit
+npm test           # vitest (unit tests for pure logic)
+npm run test:watch # vitest in watch mode
 ```
+
+### Scheduled expiry (stale statuses)
+
+Records whose time window has passed are flipped to their terminal status
+(`space_availabilities` available→expired, `visitor_passes` active→expired,
+`reservations` confirmed→completed) by the `expire_stale_records()` SQL
+function. Two ways to drive it — you only need one:
+
+- **pg_cron (default):** `setup.sql` enables `pg_cron` and schedules the job
+  every 15 minutes, entirely inside Postgres. Nothing else to configure.
+- **Vercel Cron:** set `CRON_SECRET` in your env; `vercel.json` calls
+  `GET /api/cron/expire-stale` every 15 minutes (Vercel sends the secret as a
+  bearer token automatically). Useful if pg_cron isn't available. You can also
+  hit the endpoint manually with `Authorization: Bearer $CRON_SECRET` to run it
+  on demand.
 
 ---
 

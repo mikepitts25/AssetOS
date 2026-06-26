@@ -41,3 +41,4 @@ next-env.d.ts
 # Playwright MCP artifacts
 .playwright-mcp/
 dashboard-verified.png
+invite-join-card.png

@@ -50,22 +50,28 @@ app/
     residents, reservations, guest-passes, my-space, my-reservations,
     reports, ai-insights, settings, admin/organizations
     */actions.ts             server actions (mutations + audit + revalidate)
+  app/api/cron/expire-stale/route.ts  service-role cron endpoint (Vercel Cron)
 components/
   ui/                        shadcn primitives (button, dialog, table, toast…)
   layout/                    app-shell, sidebar, topbar, nav-config
   dashboard/ properties/ spaces/ reservations/ guest-passes/ parking/ residents/
+  settings/                  edit-profile dialog
   shared/                    page-header, empty-state, status-badge
 lib/
   supabase/{client,server,admin,middleware}.ts   3 client flavors + SSR refresh
-  auth.ts roles.ts dates.ts metrics.ts insights.ts availability.ts audit.ts utils.ts
+  auth.ts roles.ts dates.ts availability.ts audit.ts utils.ts
+  metrics.ts insights.ts     async fetchers → delegate to *-compute.ts
+  metrics-compute.ts insights-compute.ts   PURE logic (no DB) — unit-tested
 types/
   domain.ts                  enums + labels (single source of truth)
   database.ts                hand-written Supabase Database type (see gotchas)
 supabase/
-  migrations/2026010100000{0,1,2}_*.sql   init / rls / availability
+  migrations/2026010100000{0,1,2,3}_*.sql   init / rls / availability / expiry
   seed.sql                   demo org, 5 users, 3 properties, 30+ spaces, data
-  setup.sql                  ONE-SHOT bundle = 3 migrations + seed, for SQL Editor
+  setup.sql                  ONE-SHOT bundle = 4 migrations + seed, for SQL Editor
   config.toml                local Supabase config (email confirmation OFF)
+test/                        Vitest suites (pure logic) + supabase-server stub
+vercel.json                  Vercel Cron schedule for /api/cron/expire-stale
 middleware.ts                refreshes session, guards /app, redirects auth pages
 ```
 
@@ -129,11 +135,27 @@ new-signup onboarding needs it). DB tables: note the guest-pass table is
    page degrades to the create-workspace form when the key is absent. Verified
    end-to-end against the live DB. Hardening left for later: matches on email
    alone (no invite token), so possession of the address = claim.
-3. **Stale statuses.** No scheduled job flips `available → expired` or guest passes
-   `active → expired` after their end time. Time-window queries handle "available
-   now," but stored status fields go stale without a cron.
-4. **No self-service profile editing** (Settings is read-only).
-5. **No automated tests.**
+3. ~~**Stale statuses.**~~ ✅ Done (2026-06-26). Migration `20260101000003_expiry.sql`
+   adds `expire_stale_records()` (SECURITY DEFINER, idempotent) flipping
+   `space_availabilities` available→expired, `visitor_passes` active→expired, and
+   `reservations` confirmed→completed once `ends_at < now()`. Two triggers, use
+   either: an in-DB **pg_cron** job (`*/15`, enabled + verified on the live DB),
+   and a portable **`/api/cron/expire-stale`** route (service-role, bearer
+   `CRON_SECRET`) wired to **Vercel Cron** via `vercel.json`. Verified end-to-end
+   (counts + idempotency) against the live DB.
+4. ~~**No self-service profile editing.**~~ ✅ Done (2026-06-26). Settings has an
+   **Edit profile** dialog → `updateOwnProfile` server action
+   (`app/app/settings/actions.ts`) updating first/last name, phone, unit on the
+   caller's own row. Only personal fields are writable (never role/email/org), so
+   it can't self-escalate despite the auth_user_id-scoped RLS policy. Audited +
+   verified end-to-end in the browser.
+5. ~~**No automated tests.**~~ ✅ Done (2026-06-26). **Vitest** added (`npm test`),
+   41 tests across `test/*.test.ts` covering roles, dates, utils, `isValidWindow`,
+   and the metrics/insights engines. To make the metric/insight math testable
+   without a DB, the pure logic was extracted into `lib/metrics-compute.ts` and
+   `lib/insights-compute.ts` (the async fetchers in `lib/metrics.ts` /
+   `lib/insights.ts` now just fetch + delegate; public API unchanged). A vitest
+   alias stubs `@/lib/supabase/server` so pure modules import cleanly in node.
 
 Intentionally deferred (per spec, not "missing"): Stripe/billing, real AI, extra
 asset types, email/SMS/push, QR scan check-in, native app, enforcement/towing.
@@ -189,4 +211,7 @@ README → "Connect to Supabase," then confirm login as `mike@assetos.demo` /
 - **Never commit secrets.** `.env.local` is gitignored. The `NEXT_PUBLIC_*` values
   (URL + publishable key) are public by design; the `SUPABASE_SERVICE_ROLE_KEY`
   (`sb_secret_…`) is not — keep it out of anything committed.
-- Run `npm run typecheck && npm run lint && npm run build` before pushing.
+- Run `npm run typecheck && npm run lint && npm test && npm run build` before pushing.
+- Pure, DB-free logic goes in `*-compute.ts` files with Vitest coverage; the async
+  `lib/*.ts` wrappers only fetch rows and delegate. Don't import `@/lib/supabase/*`
+  into a module you want unit-tested.
