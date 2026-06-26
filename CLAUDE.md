@@ -101,14 +101,23 @@ middleware.ts                refreshes session, guards /app, redirects auth page
 ✅ All 20 routes compile. Full feature set per the original MVP spec is implemented.
 ✅ Pushed to `origin/main` and `origin/claude/assetos-parking-mvp-gzt5xw` (in sync).
 
-⛔ **Not yet running against a live database.** No Supabase project has been wired
-up and verified end-to-end. The code is complete but the runtime flows
-(auth, releases, reservations) have not been exercised against real data.
+✅ **Wired up to live hosted Supabase + verified end-to-end** (2026-06-26, local
+Mac session). Applied `supabase/setup.sql` to project `cjgnmrjrrbfeqjbpvddz`
+(region **eu-west-1**) via psql through the **pooler** (`aws-0-eu-west-1.pooler.supabase.com:5432`)
+— the direct `db.*.supabase.co` host is IPv6-only and unreachable from a v4-only
+network. Verified: all 5 demo logins return 200, and a real browser sign-in as
+`mike@assetos.demo` renders the dashboard with live data (3 properties, 32 spaces).
+`.env.local` holds the URL + publishable key (service-role key left blank — only
+new-signup onboarding needs it). DB tables: note the guest-pass table is
+`visitor_passes`.
+  - **One fix was required:** the seed inserted `auth.users` with NULL token
+    columns (`confirmation_token`, etc.), which makes GoTrue 500 with "Database
+    error querying schema" on login. Fixed in `seed.sql` + `setup.sql` by
+    coalescing those columns to `''` after the insert.
 
 ### Known gaps (what's left for a fully working MVP)
 
-1. **Apply the schema to a Supabase project + verify.** Top priority. See README
-   "Connect to Supabase." Until this is done nothing works at runtime.
+1. ~~**Apply the schema to a Supabase project + verify.**~~ ✅ Done (see above).
 2. **Invite/claim flow.** A manager-added (`invited`) resident who signs up with
    that email currently gets a brand-new empty org via onboarding instead of being
    linked to their existing profile. Fix: on signup, match an existing invited

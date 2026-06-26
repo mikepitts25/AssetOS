@@ -37,3 +37,7 @@ next-env.d.ts
 # supabase
 .branches
 .temp
+
+# Playwright MCP artifacts
+.playwright-mcp/
+dashboard-verified.png
