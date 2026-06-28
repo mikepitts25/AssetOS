@@ -71,7 +71,6 @@ supabase/
   setup.sql                  ONE-SHOT bundle = 4 migrations + seed, for SQL Editor
   config.toml                local Supabase config (email confirmation OFF)
 test/                        Vitest suites (pure logic) + supabase-server stub
-vercel.json                  Vercel Cron schedule for /api/cron/expire-stale
 middleware.ts                refreshes session, guards /app, redirects auth pages
 ```
 
@@ -138,11 +137,14 @@ new-signup onboarding needs it). DB tables: note the guest-pass table is
 3. ~~**Stale statuses.**~~ ✅ Done (2026-06-26). Migration `20260101000003_expiry.sql`
    adds `expire_stale_records()` (SECURITY DEFINER, idempotent) flipping
    `space_availabilities` available→expired, `visitor_passes` active→expired, and
-   `reservations` confirmed→completed once `ends_at < now()`. Two triggers, use
-   either: an in-DB **pg_cron** job (`*/15`, enabled + verified on the live DB),
-   and a portable **`/api/cron/expire-stale`** route (service-role, bearer
-   `CRON_SECRET`) wired to **Vercel Cron** via `vercel.json`. Verified end-to-end
-   (counts + idempotency) against the live DB.
+   `reservations` confirmed→completed once `ends_at < now()`. Scheduling is an
+   in-DB **pg_cron** job (`*/15`, enabled + verified on the live DB) — runs
+   regardless of frontend host. A **`/api/cron/expire-stale`** route
+   (service-role, bearer `CRON_SECRET`) remains as an optional manual "run now"
+   trigger (also compatible with a platform cron like Vercel Cron on Pro).
+   Verified end-to-end (counts + idempotency) against the live DB.
+   (`vercel.json` was removed — Vercel Hobby caps cron at daily, and pg_cron
+   already covers the 15-min cadence.)
 4. ~~**No self-service profile editing.**~~ ✅ Done (2026-06-26). Settings has an
    **Edit profile** dialog → `updateOwnProfile` server action
    (`app/app/settings/actions.ts`) updating first/last name, phone, unit on the

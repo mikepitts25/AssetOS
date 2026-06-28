@@ -208,15 +208,15 @@ npm run test:watch # vitest in watch mode
 Records whose time window has passed are flipped to their terminal status
 (`space_availabilities` available→expired, `visitor_passes` active→expired,
 `reservations` confirmed→completed) by the `expire_stale_records()` SQL
-function. Two ways to drive it — you only need one:
+function.
 
-- **pg_cron (default):** `setup.sql` enables `pg_cron` and schedules the job
-  every 15 minutes, entirely inside Postgres. Nothing else to configure.
-- **Vercel Cron:** set `CRON_SECRET` in your env; `vercel.json` calls
-  `GET /api/cron/expire-stale` every 15 minutes (Vercel sends the secret as a
-  bearer token automatically). Useful if pg_cron isn't available. You can also
-  hit the endpoint manually with `Authorization: Bearer $CRON_SECRET` to run it
-  on demand.
+- **Scheduling — pg_cron:** `setup.sql` enables `pg_cron` and schedules the job
+  every 15 minutes, entirely inside Postgres. Nothing else to configure, and it
+  runs regardless of how the frontend is hosted.
+- **Manual trigger (optional):** set `CRON_SECRET` and call
+  `GET /api/cron/expire-stale` with `Authorization: Bearer $CRON_SECRET` to run
+  it on demand. The same route is also compatible with a platform scheduler
+  (e.g. Vercel Cron on a Pro plan) if you ever want to drive expiry externally.
 
 ---
 

@@ -9,10 +9,11 @@ export const dynamic = "force-dynamic";
  * Flips time-expired records to their terminal status by calling the
  * `expire_stale_records()` SQL function with the service-role key.
  *
- * Drive it with Vercel Cron (see vercel.json) — Vercel automatically sends
- * `Authorization: Bearer ${CRON_SECRET}` when the CRON_SECRET env var is set.
- * The same endpoint doubles as a manual "run now" trigger. If you instead rely
- * on the in-database pg_cron schedule, this route is simply unused.
+ * Scheduling is handled in-database by the pg_cron job (see
+ * 20260101000003_expiry.sql), so this route isn't on a schedule. It stays as an
+ * optional manual "run now" trigger — call it with `Authorization: Bearer
+ * ${CRON_SECRET}`. (It's also ready for a platform cron, e.g. Vercel Cron on a
+ * Pro plan, if you ever want to drive expiry from outside the database.)
  */
 async function handle(request: Request) {
   const secret = process.env.CRON_SECRET;
